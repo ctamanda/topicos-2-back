@@ -1,0 +1,31 @@
+# Maven
+target/
+.classpath
+.project
+.settings/
+.DS_Store
+*.swp
+*.swo
+*~
+.idea/
+*.iml
+*.iws
+*.ipr
+.vscode/
+*.code-workspace
+
+# Quarkus
+.quarkus/
+.env
+*.jar
+*.war
+*.ear
+
+# Node
+node_modules/
+dist/
+*.log
+
+# Database
+.h2.db
+*.db
