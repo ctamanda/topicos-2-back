@@ -2,6 +2,7 @@ package br.unitins.tp2.fincontrol.service;
 
 import java.util.List;
 
+import br.unitins.tp2.fincontrol.dto.UsuarioUpdateDTO;
 import br.unitins.tp2.fincontrol.model.AtividadeMei;
 import br.unitins.tp2.fincontrol.model.Categoria;
 import br.unitins.tp2.fincontrol.model.PerfilFiscal;
@@ -16,6 +17,7 @@ import jakarta.persistence.EntityManager;
 import jakarta.transaction.Transactional;
 import jakarta.ws.rs.BadRequestException;
 import jakarta.ws.rs.NotAuthorizedException;
+import jakarta.ws.rs.NotFoundException;
 
 @ApplicationScoped
 public class UsuarioService {
@@ -35,16 +37,19 @@ public class UsuarioService {
             AtividadeMei atividadeMei) {
 
         if (repository.findByEmail(email) != null) {
-            throw new BadRequestException("E-mail já cadastrado");
+            throw new BadRequestException("E-mail já cadastrado.");
         }
 
         if (perfilFiscal == null) {
-            throw new BadRequestException("O perfil fiscal deve ser informado");
+            throw new BadRequestException(
+                    "O perfil fiscal deve ser informado."
+            );
         }
 
         if (perfilFiscal == PerfilFiscal.MEI && atividadeMei == null) {
             throw new BadRequestException(
-                    "A atividade MEI deve ser informada para o perfil fiscal MEI");
+                    "A atividade MEI deve ser informada para o perfil fiscal MEI."
+            );
         }
 
         if (perfilFiscal != PerfilFiscal.MEI) {
@@ -57,7 +62,6 @@ public class UsuarioService {
         usuario.setPassword(BcryptUtil.bcryptHash(password));
         usuario.setPerfilFiscal(perfilFiscal);
         usuario.setAtividadeMei(atividadeMei);
-
         usuario.setRole(Role.USER);
 
         repository.persist(usuario);
@@ -74,20 +78,27 @@ public class UsuarioService {
                 novaCategoria("Transporte", TipoCategoria.DESPESA, "#3357FF", usuario),
                 novaCategoria("Lazer", TipoCategoria.DESPESA, "#FF33A1", usuario),
                 novaCategoria("Salário", TipoCategoria.RECEITA, "#28A745", usuario),
-                novaCategoria("Vendas", TipoCategoria.RECEITA, "#FFC107", usuario));
+                novaCategoria("Vendas", TipoCategoria.RECEITA, "#FFC107", usuario)
+        );
 
-        for (Categoria c : categorias) {
-            entityManager.persist(c);
+        for (Categoria categoria : categorias) {
+            entityManager.persist(categoria);
         }
     }
 
-    private Categoria novaCategoria(String nome, TipoCategoria tipo, String cor, Usuario usuario) {
-        Categoria c = new Categoria();
-        c.setNome(nome);
-        c.setTipo(tipo);
-        c.setCor(cor);
-        c.setUsuario(usuario);
-        return c;
+    private Categoria novaCategoria(
+            String nome,
+            TipoCategoria tipo,
+            String cor,
+            Usuario usuario) {
+
+        Categoria categoria = new Categoria();
+        categoria.setNome(nome);
+        categoria.setTipo(tipo);
+        categoria.setCor(cor);
+        categoria.setUsuario(usuario);
+
+        return categoria;
     }
 
     public Usuario autenticar(String email, String password) {
@@ -95,7 +106,7 @@ public class UsuarioService {
 
         if (usuario == null
                 || !BcryptUtil.matches(password, usuario.getPassword())) {
-            throw new NotAuthorizedException("Credenciais inválidas");
+            throw new NotAuthorizedException("Credenciais inválidas.");
         }
 
         return usuario;
@@ -103,5 +114,38 @@ public class UsuarioService {
 
     public Usuario buscarPorEmail(String email) {
         return repository.findByEmail(email);
+    }
+
+    @Transactional
+    public Usuario atualizarPerfil(String email, UsuarioUpdateDTO dto) {
+        Usuario usuario = repository.findByEmail(email);
+
+        if (usuario == null) {
+            throw new NotFoundException("Usuário autenticado não encontrado.");
+        }
+
+        if (dto.perfilFiscal() == null) {
+            throw new BadRequestException(
+                    "O perfil fiscal deve ser informado."
+            );
+        }
+
+        if (dto.perfilFiscal() == PerfilFiscal.MEI
+                && dto.atividadeMei() == null) {
+            throw new BadRequestException(
+                    "A atividade MEI deve ser informada para o perfil fiscal MEI."
+            );
+        }
+
+        usuario.setNome(dto.nome());
+        usuario.setPerfilFiscal(dto.perfilFiscal());
+
+        if (dto.perfilFiscal() == PerfilFiscal.MEI) {
+            usuario.setAtividadeMei(dto.atividadeMei());
+        } else {
+            usuario.setAtividadeMei(null);
+        }
+
+        return usuario;
     }
 }
