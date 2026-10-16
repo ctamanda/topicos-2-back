@@ -1,0 +1,8 @@
+CREATE TABLE usuario (
+    id BIGSERIAL PRIMARY KEY,
+    username VARCHAR(50) NOT NULL UNIQUE,
+    password VARCHAR(100) NOT NULL,
+    role VARCHAR(10) NOT NULL,
+    datacadastro TIMESTAMP,
+    dataalteracao TIMESTAMP
+);
