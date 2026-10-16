@@ -8,7 +8,6 @@ import br.unitins.tp2.fincontrol.exception.Problem;
 import br.unitins.tp2.fincontrol.exception.ResourceNotFoundException;
 import br.unitins.tp2.fincontrol.exception.ValidationException;
 import br.unitins.tp2.fincontrol.model.Categoria;
-import br.unitins.tp2.fincontrol.model.Role;
 import br.unitins.tp2.fincontrol.model.Transacao;
 import br.unitins.tp2.fincontrol.model.Usuario;
 import br.unitins.tp2.fincontrol.repository.CategoriaRepository;
@@ -62,42 +61,24 @@ public class TransacaoServiceImpl implements TransacaoService {
     @Override
     public List<Transacao> findAll(int page, int pageSize, Usuario usuario) {
         validarPaginacao(page, pageSize);
-
-        if (isAdmin(usuario)) {
-            return transacaoRepository.findAll().page(page, pageSize).list();
-        }
         return transacaoRepository.findByUsuario(usuario.getId()).page(page, pageSize).list();
     }
 
     @Override
     public List<Transacao> findByDescricao(String descricao, int page, int pageSize, Usuario usuario) {
         validarPaginacao(page, pageSize);
-
-        if (isAdmin(usuario)) {
-            return transacaoRepository.findByDescricao(descricao).page(page, pageSize).list();
-        }
         return transacaoRepository.findByUsuarioAndDescricao(usuario.getId(), descricao)
                 .page(page, pageSize).list();
     }
 
     @Override
     public long count(Usuario usuario) {
-        if (isAdmin(usuario)) {
-            return transacaoRepository.findAll().count();
-        }
         return transacaoRepository.findByUsuario(usuario.getId()).count();
     }
 
     @Override
     public long count(String descricao, Usuario usuario) {
-        if (isAdmin(usuario)) {
-            return transacaoRepository.findByDescricao(descricao).count();
-        }
         return transacaoRepository.findByUsuarioAndDescricao(usuario.getId(), descricao).count();
-    }
-
-    private boolean isAdmin(Usuario usuario) {
-        return usuario.getRole() == Role.ADMIN;
     }
 
     private void validarPaginacao(int page, int pageSize) {
@@ -135,7 +116,7 @@ public class TransacaoServiceImpl implements TransacaoService {
         if (transacao == null)
             throw new ResourceNotFoundException("Transação não encontrada.");
 
-        if (!isAdmin(usuario) && !transacao.getUsuario().getId().equals(usuario.getId()))
+        if (!transacao.getUsuario().getId().equals(usuario.getId()))
             throw new ResourceNotFoundException("Transação não encontrada.");
 
         return transacao;
