@@ -1,58 +1,114 @@
-# FinControl - Sistema de Controle de Finanças Pessoais
+# FinControl — Backend
 
-Sistema de gestão de finanças pessoais com metas e módulo fiscal, desenvolvido com Quarkus (Java) e Angular.
+API REST do sistema FinControl, desenvolvida com Quarkus (Java).
 
 ## Visão Geral
 
-FinControl é uma aplicação web full stack que permite aos usuários:
-- Cadastrar receitas e despesas por categoria
-- Definir e acompanhar metas mensais
-- Visualizar dashboard com gráficos e projeções
-- Gerenciar obrigações fiscais conforme seu perfil (PF, MEI, ME)
+Backend responsável pelo cadastro e gerenciamento de **transações financeiras** e **categorias**, com autenticação JWT e controle de acesso por perfil (ADMIN).
 
 ## Stack
 
-### Back-end
 - **Linguagem:** Java 25
 - **Framework:** Quarkus 3.38.3
 - **ORM:** Hibernate + Panache
-- **Banco:** PostgreSQL
+- **Banco:** PostgreSQL 16
+- **Migrations:** Flyway
 - **Autenticação:** JWT (SmallRye)
-- **Agendador:** Quarkus Scheduler
-
-### Front-end
-- **Framework:** Angular 18+
-- **Linguagem:** TypeScript
-- **Componentes:** Standalone Components
-- **Formulários:** Reactive Forms
+- **Build:** Maven (wrapper incluso)
 
 ## Estrutura do Projeto
 
 ```
 src/main/
   java/br/unitins/tp2/fincontrol/
-    model/              # Entidades JPA
     dto/                # Data Transfer Objects
+    exception/          # Exceções customizadas e mappers
+    mapper/             # Mapeamento entidade <-> DTO
+    model/              # Entidades JPA
+    repository/         # Acesso a dados (Panache)
     resource/           # Endpoints REST
     service/            # Lógica de negócio
-    repository/         # Acesso a dados
-    exception/          # Exceções customizadas
-    security/           # Autenticação
-    scheduler/          # Agendador de tarefas
   resources/
     application.properties
-    import.sql
+    db/migration/       # Migrations Flyway (V1__, V2__, ...)
 ```
 
 ## Como Executar
 
-### Modo desenvolvimento
+### Pré-requisitos
+
+- Java 25
+- Docker (para o PostgreSQL) **ou** PostgreSQL local rodando em `localhost:5432`
+
+### 1. Subir o banco
+
+```bash
+docker-compose up -d
+```
+
+Isso sobe um container PostgreSQL com as credenciais definidas em `application.properties`:
+- Database: `fincontroldb`
+- User: `fincontrol`
+- Password: `123456`
+
+### 2. Configurar as chaves JWT
+
+A aplicação usa **RSA** para assinar e verificar tokens JWT. A chave **privada** nunca deve ser versionada. A chave **pública** está em `src/main/resources/publicKey.pem`.
+
+Para rodar localmente, você precisa gerar um par de chaves **compatível** com a pública do repo, ou configurar suas próprias chaves via variáveis de ambiente.
+
+**Opção A — Gerar chaves próprias:**
+
+```bash
+mkdir -p ~/.fincontrol
+cd ~/.fincontrol
+openssl genpkey -algorithm RSA -out privateKey.pem -pkeyopt rsa_keygen_bits:2048
+openssl rsa -pubout -in privateKey.pem -out publicKey.pem
+```
+
+Depois configure as variáveis de ambiente:
+
+```
+JWT_PRIVATE_KEY_LOCATION=file:///C:/Users/<seu-usuario>/.fincontrol/privateKey.pem
+JWT_PUBLIC_KEY_LOCATION=file:///C:/Users/<seu-usuario>/.fincontrol/publicKey.pem
+```
+
+(no Linux/Mac: `file:///home/<seu-usuario>/.fincontrol/privateKey.pem`)
+
+**Opção B — Usar a chave pública do repo:**
+
+Se você tem acesso à chave privada correspondente ao `publicKey.pem` versionado, apenas configure `JWT_PRIVATE_KEY_LOCATION` apontando para ela.
+
+### 3. Subir a aplicação
+
 ```bash
 ./mvnw quarkus:dev
 ```
 
 Acesse em `http://localhost:8080`
 
-## Configração do Banco
+- Swagger UI: `http://localhost:8080/q/swagger-ui`
+- Dev UI: `http://localhost:8080/q/dev-ui`
 
-PostgreSQL em `localhost:5432`
+## Segurança
+
+- Endpoints sob `/admin/**` exigem token JWT com `role: ADMIN`.
+- A chave privada JWT **não** é versionada — veja a seção "Configurar as chaves JWT".
+- Chaves `.pem` (exceto `publicKey.pem`) estão bloqueadas no `.gitignore`.
+
+## Migrations
+
+As migrations ficam em `src/main/resources/db/migration/` e seguem o padrão Flyway:
+
+- `V1__...sql`
+- `V2__...sql`
+
+**Migrations já mergeadas na `main` nunca são editadas** — cria-se uma nova por cima.
+
+## Configuração do Banco (produção)
+
+Em produção, o banco é configurado via variáveis de ambiente:
+
+- `DATABASE_URL`
+- `DATABASE_USER`
+- `DATABASE_PASSWORD`
