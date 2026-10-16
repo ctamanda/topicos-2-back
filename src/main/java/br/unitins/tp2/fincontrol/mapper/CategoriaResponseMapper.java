@@ -9,6 +9,10 @@ public final class CategoriaResponseMapper {
     }
 
     public static CategoriaResponseDTO toResponse(Categoria categoria) {
-        return new CategoriaResponseDTO(categoria.getId(), categoria.getNome());
+        return new CategoriaResponseDTO(
+                categoria.getId(),
+                categoria.getNome(),
+                categoria.getTipo(),
+                categoria.getCor());
     }
 }
