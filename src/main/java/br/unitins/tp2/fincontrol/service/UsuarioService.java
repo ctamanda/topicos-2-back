@@ -9,6 +9,7 @@ import jakarta.inject.Inject;
 import jakarta.transaction.Transactional;
 import jakarta.ws.rs.BadRequestException;
 import jakarta.ws.rs.NotFoundException;
+import jakarta.ws.rs.NotAuthorizedException;
 
 @ApplicationScoped
 public class UsuarioService {
@@ -34,12 +35,10 @@ public class UsuarioService {
     public Usuario autenticar(String username, String password) {
         Usuario usuario = repository.findByUsername(username);
 
-        if (usuario == null) {
-            throw new NotFoundException("Usuário não encontrado");
-        }
-
-        if (!BcryptUtil.matches(password, usuario.getPassword())) {
-            throw new NotFoundException("Senha inválida");
+        // Mensagem única para evitar enumeração de usuários.
+        // O || faz curto-circuito: se usuario == null, não executa matches().
+        if (usuario == null || !BcryptUtil.matches(password, usuario.getPassword())) {
+            throw new NotAuthorizedException("Credenciais inválidas");
         }
 
         return usuario;
