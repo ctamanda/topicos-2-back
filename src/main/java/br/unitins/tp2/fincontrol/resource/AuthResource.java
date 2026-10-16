@@ -6,7 +6,6 @@ import java.util.Set;
 import br.unitins.tp2.fincontrol.dto.LoginRequestDTO;
 import br.unitins.tp2.fincontrol.dto.LoginResponseDTO;
 import br.unitins.tp2.fincontrol.dto.RegisterRequestDTO;
-import br.unitins.tp2.fincontrol.model.Role;
 import br.unitins.tp2.fincontrol.model.Usuario;
 import br.unitins.tp2.fincontrol.service.UsuarioService;
 import io.smallrye.jwt.build.Jwt;
@@ -30,21 +29,29 @@ public class AuthResource {
     @POST
     @Path("register")
     public Response register(@Valid RegisterRequestDTO dto) {
-        Usuario usuario = usuarioService.criar(dto.username(), dto.password(), Role.USER);
+        Usuario usuario = usuarioService.criar(
+                dto.email(),
+                dto.nome(),
+                dto.password(),
+                dto.perfilFiscal(),
+                dto.atividadeMei());
+
         return Response.status(Response.Status.CREATED)
-                .entity("Usuário " + usuario.getUsername() + " criado com sucesso")
+                .entity("Usuário " + usuario.getEmail() + " criado com sucesso")
                 .build();
     }
 
     @POST
     @Path("login")
     public LoginResponseDTO login(@Valid LoginRequestDTO dto) {
-        Usuario usuario = usuarioService.autenticar(dto.username(), dto.password());
+        Usuario usuario = usuarioService.autenticar(
+                dto.email(),
+                dto.password());
 
         long expiresInSeconds = 3600;
 
         String token = Jwt.issuer("fincontrol")
-                .upn(usuario.getUsername())
+                .upn(usuario.getEmail())
                 .groups(Set.of(usuario.getRole().name()))
                 .expiresIn(Duration.ofSeconds(expiresInSeconds))
                 .sign();

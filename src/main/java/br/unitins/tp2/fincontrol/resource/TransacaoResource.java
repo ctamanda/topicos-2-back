@@ -82,11 +82,15 @@ public class TransacaoResource {
     }
 
     private Usuario getUsuarioLogado() {
-        String username = jwt.getName();
-        Usuario usuario = usuarioService.buscarPorUsername(username);
+        // O upn do JWT agora contém o e-mail do usuário autenticado.
+        String email = jwt.getName();
+        Usuario usuario = usuarioService.buscarPorEmail(email);
+
         if (usuario == null) {
-            throw new IllegalStateException("Usuário autenticado não encontrado no banco: " + username);
+            throw new IllegalStateException(
+                    "Usuário autenticado não encontrado no banco: " + email);
         }
+
         return usuario;
     }
 }
