@@ -8,6 +8,7 @@ import br.unitins.tp2.fincontrol.dto.TransacaoResponseDTO;
 import br.unitins.tp2.fincontrol.mapper.TransacaoResponseMapper;
 import br.unitins.tp2.fincontrol.model.Transacao;
 import br.unitins.tp2.fincontrol.service.TransacaoService;
+import jakarta.annotation.security.RolesAllowed;
 import jakarta.inject.Inject;
 import jakarta.ws.rs.Consumes;
 import jakarta.ws.rs.DELETE;
@@ -21,8 +22,8 @@ import jakarta.ws.rs.Produces;
 import jakarta.ws.rs.QueryParam;
 import jakarta.ws.rs.core.MediaType;
 
-@Path("admin/transacoes")  // s
-// @RolesAllowed("ADMIN") 
+@Path("admin/transacoes") 
+@RolesAllowed("ADMIN")
 @Produces(MediaType.APPLICATION_JSON)
 @Consumes(MediaType.APPLICATION_JSON)
 public class TransacaoResource {
