@@ -29,3 +29,12 @@ dist/
 # Database
 .h2.db
 *.db
+
+# Segurança - chaves e certificados
+*.pem
+*.key
+*.crt
+*.p12
+*.jks
+.env
+.env.*
