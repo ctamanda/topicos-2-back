@@ -38,3 +38,5 @@ dist/
 *.jks
 .env
 .env.*
+# Exceção: chave pública PODE ir pro repo (não é secreta)
+!publicKey.pem
