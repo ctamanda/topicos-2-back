@@ -8,22 +8,41 @@ import jakarta.persistence.Enumerated;
 @Entity
 public class Usuario extends DefaultEntity {
 
-    @Column(length = 50, nullable = false, unique = true)
-    private String username;
+    @Column(name = "email", length = 254, nullable = false, unique = true)
+    private String email;
 
-    @Column(length = 100, nullable = false)
+    @Column(name = "nome", length = 100, nullable = false)
+    private String nome;
+
+    @Column(name = "password", length = 100, nullable = false)
     private String password;
 
     @Enumerated(EnumType.STRING)
-    @Column(length = 10, nullable = false)
+    @Column(name = "perfil_fiscal", length = 10, nullable = false)
+    private PerfilFiscal perfilFiscal;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "atividade_mei", length = 10)
+    private AtividadeMei atividadeMei;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "role", length = 10, nullable = false)
     private Role role;
 
-    public String getUsername() {
-        return username;
+    public String getEmail() {
+        return email;
     }
 
-    public void setUsername(String username) {
-        this.username = username;
+    public void setEmail(String email) {
+        this.email = email;
+    }
+
+    public String getNome() {
+        return nome;
+    }
+
+    public void setNome(String nome) {
+        this.nome = nome;
     }
 
     public String getPassword() {
@@ -32,6 +51,22 @@ public class Usuario extends DefaultEntity {
 
     public void setPassword(String password) {
         this.password = password;
+    }
+
+    public PerfilFiscal getPerfilFiscal() {
+        return perfilFiscal;
+    }
+
+    public void setPerfilFiscal(PerfilFiscal perfilFiscal) {
+        this.perfilFiscal = perfilFiscal;
+    }
+
+    public AtividadeMei getAtividadeMei() {
+        return atividadeMei;
+    }
+
+    public void setAtividadeMei(AtividadeMei atividadeMei) {
+        this.atividadeMei = atividadeMei;
     }
 
     public Role getRole() {
