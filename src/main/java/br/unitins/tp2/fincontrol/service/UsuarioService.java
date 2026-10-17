@@ -17,7 +17,6 @@ import jakarta.persistence.EntityManager;
 import jakarta.transaction.Transactional;
 import jakarta.ws.rs.BadRequestException;
 import jakarta.ws.rs.NotAuthorizedException;
-import jakarta.ws.rs.NotFoundException;
 
 @ApplicationScoped
 public class UsuarioService {
@@ -36,7 +35,9 @@ public class UsuarioService {
             PerfilFiscal perfilFiscal,
             AtividadeMei atividadeMei) {
 
-        if (repository.findByEmail(email) != null) {
+        String emailNormalizado = normalizarEmail(email);
+
+        if (repository.findByEmail(emailNormalizado) != null) {
             throw new BadRequestException("E-mail já cadastrado.");
         }
 
@@ -57,8 +58,8 @@ public class UsuarioService {
         }
 
         Usuario usuario = new Usuario();
-        usuario.setEmail(email);
-        usuario.setNome(nome);
+        usuario.setEmail(emailNormalizado);
+        usuario.setNome(nome.trim());
         usuario.setPassword(BcryptUtil.bcryptHash(password));
         usuario.setPerfilFiscal(perfilFiscal);
         usuario.setAtividadeMei(atividadeMei);
@@ -106,7 +107,8 @@ public class UsuarioService {
 
         if (usuario == null
                 || !BcryptUtil.matches(password, usuario.getPassword())) {
-            throw new NotAuthorizedException("Credenciais inválidas.");
+            // O 1º argumento é a mensagem; o 2º vira o cabeçalho WWW-Authenticate.
+            throw new NotAuthorizedException("Credenciais inválidas.", "Bearer");
         }
 
         return usuario;
@@ -116,13 +118,20 @@ public class UsuarioService {
         return repository.findByEmail(email);
     }
 
-    @Transactional
-    public Usuario atualizarPerfil(String email, UsuarioUpdateDTO dto) {
+    // Usuário dono do token (upn). Se a conta não existe mais, o token deixa de valer: 401.
+    public Usuario buscarLogado(String email) {
         Usuario usuario = repository.findByEmail(email);
 
         if (usuario == null) {
-            throw new NotFoundException("Usuário autenticado não encontrado.");
+            throw new NotAuthorizedException("Usuário do token não encontrado.", "Bearer");
         }
+
+        return usuario;
+    }
+
+    @Transactional
+    public Usuario atualizarPerfil(String email, UsuarioUpdateDTO dto) {
+        Usuario usuario = buscarLogado(email);
 
         if (dto.perfilFiscal() == null) {
             throw new BadRequestException(
@@ -137,7 +146,7 @@ public class UsuarioService {
             );
         }
 
-        usuario.setNome(dto.nome());
+        usuario.setNome(dto.nome().trim());
         usuario.setPerfilFiscal(dto.perfilFiscal());
 
         if (dto.perfilFiscal() == PerfilFiscal.MEI) {
@@ -147,5 +156,9 @@ public class UsuarioService {
         }
 
         return usuario;
+    }
+
+    private String normalizarEmail(String email) {
+        return email == null ? null : email.trim().toLowerCase();
     }
 }
