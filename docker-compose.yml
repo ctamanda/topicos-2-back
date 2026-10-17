@@ -7,7 +7,8 @@ services:
       POSTGRES_USER: fincontrol
       POSTGRES_PASSWORD: 123456
     ports:
-      - "5432:5432"
+      # DB_PORT permite trocar a porta do host (ex.: 5433 se já houver um PostgreSQL local na 5432)
+      - "${DB_PORT:-5432}:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
     healthcheck:
