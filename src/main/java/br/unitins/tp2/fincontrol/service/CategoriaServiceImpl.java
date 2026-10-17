@@ -8,6 +8,7 @@ import br.unitins.tp2.fincontrol.exception.ValidationException;
 import br.unitins.tp2.fincontrol.model.Categoria;
 import br.unitins.tp2.fincontrol.model.Usuario;
 import br.unitins.tp2.fincontrol.repository.CategoriaRepository;
+import br.unitins.tp2.fincontrol.repository.TransacaoRepository;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import jakarta.transaction.Transactional;
@@ -17,6 +18,9 @@ public class CategoriaServiceImpl implements CategoriaService {
 
     @Inject
     CategoriaRepository repository;
+
+    @Inject
+    TransacaoRepository transacaoRepository;
 
     @Override
     @Transactional
@@ -42,6 +46,13 @@ public class CategoriaServiceImpl implements CategoriaService {
     @Transactional
     public void delete(Long id, Usuario usuario) {
         Categoria categoria = buscarCategoriaOuFalhar(id, usuario);
+
+        // Sem esta checagem a FK de transacao estoura como erro 500.
+        if (transacaoRepository.count("categoria.id", categoria.getId()) > 0) {
+            throw ValidationException.of("categoria",
+                    "Esta categoria possui transações e não pode ser excluída.");
+        }
+
         repository.delete(categoria);
     }
 
