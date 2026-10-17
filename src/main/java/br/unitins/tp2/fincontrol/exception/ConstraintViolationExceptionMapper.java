@@ -62,6 +62,7 @@ public class ConstraintViolationExceptionMapper implements ExceptionMapper<Const
                 last = node.getName();
             }
         }
-        return (last != null) ? last : "unknown";
+        // Sem propriedade = a violação é no próprio parâmetro (ex.: corpo ausente).
+        return (last != null) ? last : "corpo";
     }
 }

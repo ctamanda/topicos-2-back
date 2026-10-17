@@ -5,6 +5,8 @@ import java.time.OffsetDateTime;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
 import org.jboss.logging.Logger;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.ws.rs.WebApplicationException;
 import jakarta.ws.rs.core.Context;
@@ -27,6 +29,23 @@ public class UncaughtExceptionMapper implements ExceptionMapper<Throwable> {
 
     @Override
     public Response toResponse(Throwable t) {
+        // JSON malformado chega embrulhado num 400 genérico: explica o problema.
+        JsonProcessingException json = procurarCausa(t, JsonProcessingException.class);
+        if (json != null) {
+            return problema(Response.Status.BAD_REQUEST, "/errors/validation-error", "Erro de validação",
+                    "Um ou mais campos não passaram na validação.", JsonInvalido.erros(json));
+        }
+
+        // Constraint do banco (unique/FK) em corrida entre requisições: conflito, não erro interno.
+        org.hibernate.exception.ConstraintViolationException constraint =
+                procurarCausa(t, org.hibernate.exception.ConstraintViolationException.class);
+        if (constraint != null) {
+            LOG.warnf("Violação de constraint %s em %s", constraint.getConstraintName(),
+                    (uriInfo != null ? uriInfo.getRequestUri() : "<no-uri>"));
+            return problema(Response.Status.CONFLICT, "/errors/conflict", "Conflito",
+                    "O registro conflita com outro já existente ou está em uso.", null);
+        }
+
         // Erros HTTP "normais" do JAX-RS (404, 405, 415...) mantêm o status original
         // em vez de virarem 500 só porque este mapper captura Throwable.
         if (t instanceof WebApplicationException wae) {
@@ -53,6 +72,31 @@ public class UncaughtExceptionMapper implements ExceptionMapper<Throwable> {
                 .type("application/problem+json")
                 .entity(p)
                 .build();
+    }
+
+    private Response problema(Response.Status status, String tipo, String titulo, String detalhe,
+            java.util.List<Problem.FieldError> erros) {
+        Problem p = new Problem();
+        p.type = baseUrl + tipo;
+        p.title = titulo;
+        p.status = status.getStatusCode();
+        p.detail = detalhe;
+        p.instance = (uriInfo != null ? uriInfo.getRequestUri().getPath() : null);
+        p.timestamp = OffsetDateTime.now();
+        p.errors = erros;
+        return Response.status(p.status).type("application/problem+json").entity(p).build();
+    }
+
+    private static <T extends Throwable> T procurarCausa(Throwable t, Class<T> tipo) {
+        for (Throwable atual = t; atual != null; atual = atual.getCause()) {
+            if (tipo.isInstance(atual)) {
+                return tipo.cast(atual);
+            }
+            if (atual.getCause() == atual) {
+                break;
+            }
+        }
+        return null;
     }
 
     private Response toClientErrorResponse(int status, WebApplicationException e) {
