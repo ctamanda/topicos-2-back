@@ -40,7 +40,7 @@ public class ParametroFiscalServiceImpl implements ParametroFiscalService {
         validarPeriodo(dto);
 
         verificarSobreposicao(
-                dto.chave(),
+                normalizarChave(dto.chave()),
                 dto.vigenciaInicio(),
                 dto.vigenciaFim(),
                 null
@@ -62,7 +62,7 @@ public class ParametroFiscalServiceImpl implements ParametroFiscalService {
         ParametroFiscal parametro = findById(id);
 
         verificarSobreposicao(
-                dto.chave(),
+                normalizarChave(dto.chave()),
                 dto.vigenciaInicio(),
                 dto.vigenciaFim(),
                 id
@@ -82,10 +82,15 @@ public class ParametroFiscalServiceImpl implements ParametroFiscalService {
     }
 
     private void aplicarDados(ParametroFiscal parametro, ParametroFiscalRequestDTO dto) {
-        parametro.setChave(dto.chave());
+        parametro.setChave(normalizarChave(dto.chave()));
         parametro.setValor(dto.valor());
         parametro.setVigenciaInicio(dto.vigenciaInicio());
         parametro.setVigenciaFim(dto.vigenciaFim());
+    }
+
+    // Chaves padronizadas: "limite faturamento mei" e "LIMITE_FATURAMENTO_MEI" são a mesma.
+    private String normalizarChave(String chave) {
+        return chave.trim().toUpperCase().replaceAll("\\s+", "_");
     }
 
     private void validarPeriodo(ParametroFiscalRequestDTO dto) {

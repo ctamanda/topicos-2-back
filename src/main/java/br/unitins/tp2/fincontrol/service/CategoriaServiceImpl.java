@@ -48,7 +48,7 @@ public class CategoriaServiceImpl implements CategoriaService {
         Categoria categoria = buscarCategoriaOuFalhar(id, usuario);
 
         // Sem esta checagem a FK de transacao estoura como erro 500.
-        if (transacaoRepository.count("categoria.id", categoria.getId()) > 0) {
+        if (possuiTransacoes(categoria)) {
             throw ValidationException.of("categoria",
                     "Esta categoria possui transações e não pode ser excluída.");
         }
@@ -67,22 +67,35 @@ public class CategoriaServiceImpl implements CategoriaService {
     }
 
     private void aplicarDados(Categoria categoria, CategoriaRequestDTO dto, Usuario usuario) {
-        Categoria existente = repository.findByUsuarioAndNome(usuario.getId(), dto.nome());
+        String nome = dto.nome().trim();
+
+        Categoria existente = repository.findByUsuarioAndNome(usuario.getId(), nome);
         if (existente != null && !existente.getId().equals(categoria.getId())) {
             throw ValidationException.of("nome",
-                    "Ja existe uma categoria com esse nome.");
+                    "Já existe uma categoria com esse nome.");
         }
 
-        categoria.setNome(dto.nome());
+        // Trocar o tipo deixaria transações de despesa numa categoria de receita (e vice-versa).
+        boolean mudouTipo = categoria.getId() != null && categoria.getTipo() != dto.tipo();
+        if (mudouTipo && possuiTransacoes(categoria)) {
+            throw ValidationException.of("tipo",
+                    "Não é possível alterar o tipo de uma categoria que já possui transações.");
+        }
+
+        categoria.setNome(nome);
         categoria.setTipo(dto.tipo());
-        categoria.setCor(dto.cor());
+        categoria.setCor(dto.cor() == null || dto.cor().isBlank() ? null : dto.cor().toUpperCase());
+    }
+
+    private boolean possuiTransacoes(Categoria categoria) {
+        return transacaoRepository.count("categoria.id", categoria.getId()) > 0;
     }
 
     private Categoria buscarCategoriaOuFalhar(Long id, Usuario usuario) {
         Categoria categoria = repository.findByUsuarioAndId(usuario.getId(), id);
 
         if (categoria == null)
-            throw new ResourceNotFoundException("Categoria nao encontrada.");
+            throw new ResourceNotFoundException("Categoria não encontrada.");
 
         return categoria;
     }

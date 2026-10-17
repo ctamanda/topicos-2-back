@@ -94,12 +94,21 @@ public class TransacaoServiceImpl implements TransacaoService {
     }
 
     private void aplicarDados(Transacao destino, TransacaoRequestDTO origem, Usuario usuario) {
-        destino.setDescricao(origem.descricao());
+        Categoria categoria = buscarCategoriaOuFalhar(origem.idCategoria(), usuario);
+
+        // Despesa só em categoria de despesa; receita só em categoria de receita.
+        if (!categoria.getTipo().name().equals(origem.tipo().name())) {
+            throw ValidationException.of("idCategoria",
+                    "A categoria escolhida é de " + categoria.getTipo().name().toLowerCase()
+                            + " e não combina com uma transação de " + origem.tipo().name().toLowerCase() + ".");
+        }
+
+        destino.setDescricao(origem.descricao().trim());
         destino.setValor(origem.valor());
         destino.setData(origem.data());
         destino.setTipo(origem.tipo());
         destino.setEscopo(origem.escopo());
-        destino.setCategoria(buscarCategoriaOuFalhar(origem.idCategoria(), usuario));
+        destino.setCategoria(categoria);
     }
 
     // Só aceita categoria do próprio usuário: sem isso daria para vincular (e ler)
