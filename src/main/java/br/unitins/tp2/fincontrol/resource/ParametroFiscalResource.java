@@ -10,6 +10,7 @@ import br.unitins.tp2.fincontrol.service.ParametroFiscalService;
 import jakarta.annotation.security.RolesAllowed;
 import jakarta.inject.Inject;
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.NotNull;
 import jakarta.ws.rs.Consumes;
 import jakarta.ws.rs.DELETE;
 import jakarta.ws.rs.GET;
@@ -45,7 +46,7 @@ public class ParametroFiscalResource {
     }
 
     @POST
-    public Response create(@Valid ParametroFiscalRequestDTO dto) {
+    public Response create(@Valid @NotNull(message = "O corpo da requisição deve ser informado.") ParametroFiscalRequestDTO dto) {
         ParametroFiscal parametro = service.create(dto);
         ParametroFiscalResponseDTO response = ParametroFiscalResponseMapper.toResponse(parametro);
         return Response.status(Response.Status.CREATED)
@@ -57,7 +58,7 @@ public class ParametroFiscalResource {
     @Path("{id}")
     public ParametroFiscalResponseDTO update(
             @PathParam("id") Long id,
-            @Valid ParametroFiscalRequestDTO dto
+            @Valid @NotNull(message = "O corpo da requisição deve ser informado.") ParametroFiscalRequestDTO dto
     ) {
         return ParametroFiscalResponseMapper.toResponse(service.update(id, dto));
     }

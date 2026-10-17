@@ -14,6 +14,7 @@ import br.unitins.tp2.fincontrol.service.UsuarioService;
 import jakarta.annotation.security.RolesAllowed;
 import jakarta.inject.Inject;
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.NotNull;
 import jakarta.ws.rs.Consumes;
 import jakarta.ws.rs.DELETE;
 import jakarta.ws.rs.GET;
@@ -54,7 +55,8 @@ public class CategoriaResource {
     }
 
     @POST
-    public Response incluir(@Valid CategoriaRequestDTO dto) {
+    public Response incluir(
+            @Valid @NotNull(message = "O corpo da requisição deve ser informado.") CategoriaRequestDTO dto) {
         Categoria categoria = service.create(dto, getUsuarioLogado());
         return Response.status(Response.Status.CREATED)
                 .entity(CategoriaResponseMapper.toResponse(categoria))
@@ -64,7 +66,7 @@ public class CategoriaResource {
     @PUT
     @Path("/{id}")
     public CategoriaResponseDTO alterar(@PathParam("id") Long id,
-            @Valid CategoriaRequestDTO dto) {
+            @Valid @NotNull(message = "O corpo da requisição deve ser informado.") CategoriaRequestDTO dto) {
         return CategoriaResponseMapper.toResponse(service.update(id, dto, getUsuarioLogado()));
     }
 
@@ -76,12 +78,6 @@ public class CategoriaResource {
     }
 
     private Usuario getUsuarioLogado() {
-        String email = jwt.getName();
-        Usuario usuario = usuarioService.buscarPorEmail(email);
-        if (usuario == null) {
-            throw new IllegalStateException(
-                    "Usuario autenticado nao encontrado no banco: " + email);
-        }
-        return usuario;
+        return usuarioService.buscarLogado(jwt.getName());
     }
 }

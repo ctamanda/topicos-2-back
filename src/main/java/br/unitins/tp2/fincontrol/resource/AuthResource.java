@@ -6,11 +6,13 @@ import java.util.Set;
 import br.unitins.tp2.fincontrol.dto.LoginRequestDTO;
 import br.unitins.tp2.fincontrol.dto.LoginResponseDTO;
 import br.unitins.tp2.fincontrol.dto.RegisterRequestDTO;
+import br.unitins.tp2.fincontrol.mapper.UsuarioResponseMapper;
 import br.unitins.tp2.fincontrol.model.Usuario;
 import br.unitins.tp2.fincontrol.service.UsuarioService;
 import io.smallrye.jwt.build.Jwt;
 import jakarta.inject.Inject;
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.NotNull;
 import jakarta.ws.rs.Consumes;
 import jakarta.ws.rs.POST;
 import jakarta.ws.rs.Path;
@@ -23,12 +25,16 @@ import jakarta.ws.rs.core.Response;
 @Consumes(MediaType.APPLICATION_JSON)
 public class AuthResource {
 
+    private static final long EXPIRES_IN_SECONDS = 3600;
+
     @Inject
     UsuarioService usuarioService;
 
+    // 201 com os dados públicos do usuário criado (sem senha).
     @POST
     @Path("register")
-    public Response register(@Valid RegisterRequestDTO dto) {
+    public Response register(
+            @Valid @NotNull(message = "O corpo da requisição deve ser informado.") RegisterRequestDTO dto) {
         Usuario usuario = usuarioService.criar(
                 dto.email(),
                 dto.nome(),
@@ -37,25 +43,24 @@ public class AuthResource {
                 dto.atividadeMei());
 
         return Response.status(Response.Status.CREATED)
-                .entity("Usuário " + usuario.getEmail() + " criado com sucesso")
+                .entity(UsuarioResponseMapper.toResponse(usuario))
                 .build();
     }
 
     @POST
     @Path("login")
-    public LoginResponseDTO login(@Valid LoginRequestDTO dto) {
+    public LoginResponseDTO login(
+            @Valid @NotNull(message = "O corpo da requisição deve ser informado.") LoginRequestDTO dto) {
         Usuario usuario = usuarioService.autenticar(
                 dto.email(),
                 dto.password());
 
-        long expiresInSeconds = 3600;
-
         String token = Jwt.issuer("fincontrol")
                 .upn(usuario.getEmail())
                 .groups(Set.of(usuario.getRole().name()))
-                .expiresIn(Duration.ofSeconds(expiresInSeconds))
+                .expiresIn(Duration.ofSeconds(EXPIRES_IN_SECONDS))
                 .sign();
 
-        return new LoginResponseDTO(token, expiresInSeconds);
+        return new LoginResponseDTO(token, EXPIRES_IN_SECONDS);
     }
 }

@@ -15,6 +15,7 @@ import br.unitins.tp2.fincontrol.service.UsuarioService;
 import jakarta.annotation.security.RolesAllowed;
 import jakarta.inject.Inject;
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.NotNull;
 import jakarta.ws.rs.Consumes;
 import jakarta.ws.rs.DELETE;
 import jakarta.ws.rs.DefaultValue;
@@ -26,6 +27,7 @@ import jakarta.ws.rs.PathParam;
 import jakarta.ws.rs.Produces;
 import jakarta.ws.rs.QueryParam;
 import jakarta.ws.rs.core.MediaType;
+import jakarta.ws.rs.core.Response;
 
 @Path("transacoes")
 @RolesAllowed({"ADMIN", "USER"})
@@ -46,12 +48,14 @@ public class TransacaoResource {
     public PageResponse<TransacaoResponseDTO> buscarTodos(@QueryParam("descricao") String descricao,
             @QueryParam("page") @DefaultValue("0") int page,
             @QueryParam("pageSize") @DefaultValue("10") int pageSize) {
+
         Usuario usuario = getUsuarioLogado();
         boolean filtrar = descricao != null && !descricao.isBlank();
 
         List<Transacao> transacoes = filtrar
                 ? service.findByDescricao(descricao.trim(), page, pageSize, usuario)
                 : service.findAll(page, pageSize, usuario);
+
         long totalItems = filtrar
                 ? service.count(descricao.trim(), usuario)
                 : service.count(usuario);
@@ -66,13 +70,18 @@ public class TransacaoResource {
     }
 
     @POST
-    public TransacaoResponseDTO incluir(@Valid TransacaoRequestDTO dto) {
-        return TransacaoResponseMapper.toResponse(service.create(dto, getUsuarioLogado()));
+    public Response incluir(
+            @Valid @NotNull(message = "O corpo da requisição deve ser informado.") TransacaoRequestDTO dto) {
+        Transacao transacao = service.create(dto, getUsuarioLogado());
+        return Response.status(Response.Status.CREATED)
+                .entity(TransacaoResponseMapper.toResponse(transacao))
+                .build();
     }
 
     @PUT
     @Path("/{id}")
-    public void alterar(@PathParam("id") Long id, @Valid TransacaoRequestDTO transacao) {
+    public void alterar(@PathParam("id") Long id,
+            @Valid @NotNull(message = "O corpo da requisição deve ser informado.") TransacaoRequestDTO transacao) {
         service.update(id, transacao, getUsuarioLogado());
     }
 
@@ -82,16 +91,8 @@ public class TransacaoResource {
         service.delete(id, getUsuarioLogado());
     }
 
+    // O upn do JWT contém o e-mail do usuário autenticado.
     private Usuario getUsuarioLogado() {
-        // O upn do JWT agora contém o e-mail do usuário autenticado.
-        String email = jwt.getName();
-        Usuario usuario = usuarioService.buscarPorEmail(email);
-
-        if (usuario == null) {
-            throw new IllegalStateException(
-                    "Usuário autenticado não encontrado no banco: " + email);
-        }
-
-        return usuario;
+        return usuarioService.buscarLogado(jwt.getName());
     }
 }

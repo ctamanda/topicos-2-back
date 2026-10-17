@@ -5,14 +5,13 @@ import org.eclipse.microprofile.jwt.JsonWebToken;
 import br.unitins.tp2.fincontrol.dto.UsuarioResponseDTO;
 import br.unitins.tp2.fincontrol.dto.UsuarioUpdateDTO;
 import br.unitins.tp2.fincontrol.mapper.UsuarioResponseMapper;
-import br.unitins.tp2.fincontrol.model.Usuario;
 import br.unitins.tp2.fincontrol.service.UsuarioService;
 import jakarta.annotation.security.RolesAllowed;
 import jakarta.inject.Inject;
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.NotNull;
 import jakarta.ws.rs.Consumes;
 import jakarta.ws.rs.GET;
-import jakarta.ws.rs.NotFoundException;
 import jakarta.ws.rs.PUT;
 import jakarta.ws.rs.Path;
 import jakarta.ws.rs.Produces;
@@ -33,22 +32,13 @@ public class UsuarioResource {
     @GET
     @Path("me")
     public UsuarioResponseDTO buscarMeuPerfil() {
-        String email = jwt.getName();
-        Usuario usuario = usuarioService.buscarPorEmail(email);
-
-        if (usuario == null) {
-            throw new NotFoundException("Usuário autenticado não encontrado.");
-        }
-
-        return UsuarioResponseMapper.toResponse(usuario);
+        return UsuarioResponseMapper.toResponse(usuarioService.buscarLogado(jwt.getName()));
     }
 
     @PUT
     @Path("me")
-    public UsuarioResponseDTO atualizarMeuPerfil(@Valid UsuarioUpdateDTO dto) {
-        String email = jwt.getName();
-        Usuario usuario = usuarioService.atualizarPerfil(email, dto);
-
-        return UsuarioResponseMapper.toResponse(usuario);
+    public UsuarioResponseDTO atualizarMeuPerfil(
+            @Valid @NotNull(message = "O corpo da requisição deve ser informado.") UsuarioUpdateDTO dto) {
+        return UsuarioResponseMapper.toResponse(usuarioService.atualizarPerfil(jwt.getName(), dto));
     }
 }
