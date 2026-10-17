@@ -31,7 +31,7 @@ public class TransacaoServiceImpl implements TransacaoService {
     @Transactional
     public Transacao create(TransacaoRequestDTO transacao, Usuario usuario) {
         Transacao novaTransacao = new Transacao();
-        aplicarDados(novaTransacao, transacao);
+        aplicarDados(novaTransacao, transacao, usuario);
         novaTransacao.setUsuario(usuario);
 
         transacaoRepository.persist(novaTransacao);
@@ -43,7 +43,7 @@ public class TransacaoServiceImpl implements TransacaoService {
     @Transactional
     public void update(long id, TransacaoRequestDTO transacao, Usuario usuario) {
         Transacao edicaoTransacao = buscarTransacaoOuFalhar(id, usuario);
-        aplicarDados(edicaoTransacao, transacao);
+        aplicarDados(edicaoTransacao, transacao, usuario);
     }
 
     @Override
@@ -93,17 +93,21 @@ public class TransacaoServiceImpl implements TransacaoService {
             throw new ValidationException("Parâmetros de paginação inválidos", erros);
     }
 
-    private void aplicarDados(Transacao destino, TransacaoRequestDTO origem) {
+    private void aplicarDados(Transacao destino, TransacaoRequestDTO origem, Usuario usuario) {
         destino.setDescricao(origem.descricao());
         destino.setValor(origem.valor());
         destino.setData(origem.data());
         destino.setTipo(origem.tipo());
         destino.setEscopo(origem.escopo());
-        destino.setCategoria(buscarCategoriaOuFalhar(origem.idCategoria()));
+        destino.setCategoria(buscarCategoriaOuFalhar(origem.idCategoria(), usuario));
     }
 
-    private Categoria buscarCategoriaOuFalhar(Long idCategoria) {
-        Categoria categoria = categoriaRepository.findById(idCategoria);
+    // Só aceita categoria do próprio usuário: sem isso daria para vincular (e ler)
+    // a categoria de outra pessoa informando o id dela.
+    private Categoria buscarCategoriaOuFalhar(Long idCategoria, Usuario usuario) {
+        Categoria categoria = idCategoria == null
+                ? null
+                : categoriaRepository.findByUsuarioAndId(usuario.getId(), idCategoria);
         if (categoria == null)
             throw ValidationException.of("idCategoria", "Categoria não encontrada.");
 
