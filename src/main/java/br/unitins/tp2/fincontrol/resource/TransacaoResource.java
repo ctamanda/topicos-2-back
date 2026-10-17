@@ -14,6 +14,7 @@ import br.unitins.tp2.fincontrol.service.TransacaoService;
 import br.unitins.tp2.fincontrol.service.UsuarioService;
 import jakarta.annotation.security.RolesAllowed;
 import jakarta.inject.Inject;
+import jakarta.validation.Valid;
 import jakarta.ws.rs.Consumes;
 import jakarta.ws.rs.DELETE;
 import jakarta.ws.rs.DefaultValue;
@@ -65,13 +66,13 @@ public class TransacaoResource {
     }
 
     @POST
-    public TransacaoResponseDTO incluir(TransacaoRequestDTO dto) {
+    public TransacaoResponseDTO incluir(@Valid TransacaoRequestDTO dto) {
         return TransacaoResponseMapper.toResponse(service.create(dto, getUsuarioLogado()));
     }
 
     @PUT
     @Path("/{id}")
-    public void alterar(@PathParam("id") Long id, TransacaoRequestDTO transacao) {
+    public void alterar(@PathParam("id") Long id, @Valid TransacaoRequestDTO transacao) {
         service.update(id, transacao, getUsuarioLogado());
     }
 
