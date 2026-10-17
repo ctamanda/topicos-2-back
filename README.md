@@ -30,6 +30,7 @@
 - [Modelo de dados](#modelo-de-dados)
 - [Migrations](#migrations)
 - [Segurança e LGPD](#segurança-e-lgpd)
+- [Testes automatizados](#testes-automatizados)
 - [Docker](#docker)
 
 ---
@@ -194,7 +195,7 @@ Legenda de acesso: 🌐 público · 👤 USER ou ADMIN · 🛡️ só ADMIN
 
 | Método | Rota | Acesso | Corpo | Resposta |
 |---|---|---|---|---|
-| POST | `/auth/register` | 🌐 | `RegisterRequestDTO` | **201** texto: `Usuário x criado com sucesso` |
+| POST | `/auth/register` | 🌐 | `RegisterRequestDTO` | **201** `UsuarioResponseDTO` · **400** e-mail já cadastrado |
 | POST | `/auth/login` | 🌐 | `LoginRequestDTO` | **200** `{ token, expiresIn }` · **401** credenciais inválidas |
 
 ```jsonc
@@ -233,7 +234,7 @@ Legenda de acesso: 🌐 público · 👤 USER ou ADMIN · 🛡️ só ADMIN
 |---|---|---|---|---|
 | GET | `/transacoes?page=0&pageSize=10&descricao=` | 👤 | — | **200** `PageResponse<TransacaoResponseDTO>` |
 | GET | `/transacoes/{id}` | 👤 | — | **200** · **404** se não existir ou não for do usuário |
-| POST | `/transacoes` | 👤 | `TransacaoRequestDTO` | **200** `TransacaoResponseDTO` |
+| POST | `/transacoes` | 👤 | `TransacaoRequestDTO` | **201** `TransacaoResponseDTO` |
 | PUT | `/transacoes/{id}` | 👤 | `TransacaoRequestDTO` | **204** |
 | DELETE | `/transacoes/{id}` | 👤 | — | **204** |
 
@@ -249,7 +250,7 @@ Legenda de acesso: 🌐 público · 👤 USER ou ADMIN · 🛡️ só ADMIN
   "data": "2026-10-10",          // yyyy-MM-dd
   "tipo": "DESPESA",             // RECEITA | DESPESA
   "escopo": "PESSOAL",           // PESSOAL | EMPRESA
-  "idCategoria": 3               // precisa ser categoria do próprio usuário
+  "idCategoria": 3               // categoria do próprio usuário e do mesmo tipo (despesa/receita)
 }
 
 // PageResponse
@@ -266,7 +267,7 @@ Legenda de acesso: 🌐 público · 👤 USER ou ADMIN · 🛡️ só ADMIN
 | GET | `/categorias` | 👤 | — | **200** lista ordenada por nome (sem paginação) |
 | GET | `/categorias/{id}` | 👤 | — | **200** · **404** |
 | POST | `/categorias` | 👤 | `CategoriaRequestDTO` | **201** `CategoriaResponseDTO` |
-| PUT | `/categorias/{id}` | 👤 | `CategoriaRequestDTO` | **200** `CategoriaResponseDTO` |
+| PUT | `/categorias/{id}` | 👤 | `CategoriaRequestDTO` | **200** · **400** se mudar o tipo de uma categoria com transações |
 | DELETE | `/categorias/{id}` | 👤 | — | **204** · **400** se houver transações na categoria |
 
 ```jsonc
@@ -315,26 +316,31 @@ Os erros da aplicação seguem o padrão **RFC 7807 / 9457** (`application/probl
 
 | Status | Quando |
 |---|---|
-| 400 | Validação de campos (`errors`), regra de negócio (`detail`) |
+| 400 | Validação de campos (`errors`), regra de negócio (`detail`), corpo ausente ou JSON inválido (ex.: enum inexistente lista os valores aceitos; data fora de `aaaa-mm-dd`) |
 | 401 | Sem token, token inválido ou expirado (**sem corpo**, vem da camada de segurança); senha errada no login (com corpo RFC 7807) |
 | 403 | Perfil sem permissão, ex.: USER em `/admin/*` (**sem corpo**) |
 | 404 | Recurso inexistente **ou de outro usuário** (não revela que existe) |
+| 409 | Conflito no banco em requisições simultâneas (ex.: dois cadastros com o mesmo e-mail ao mesmo tempo) |
 | 500 | Erro inesperado (detalhe só no log do servidor) |
 
 ## Regras de negócio
 
 | Regra | Onde |
 |---|---|
-| E-mail único no cadastro | `UsuarioService.criar` |
+| E-mail único, **sem diferenciar maiúsculas** (gravado em minúsculas; login aceita qualquer caixa) | `UsuarioService` + índice `uk_usuario_email_lower` (V11) |
 | Perfil **MEI** exige `atividadeMei`; nos outros perfis ela é descartada | `UsuarioService` (cadastro e edição) |
 | Senha guardada com **BCrypt** | `UsuarioService.criar` |
 | Todo usuário novo ganha 6 categorias: Alimentação, Moradia, Transporte, Lazer (despesas), Salário e Vendas (receitas) | `UsuarioService.criarCategoriasIniciais` |
-| Nome de categoria único **por usuário** (sem diferenciar maiúsculas) | `CategoriaServiceImpl` + constraint `uk_categoria_nome_usuario` |
+| Nome de categoria único **por usuário**, sem diferenciar maiúsculas e ignorando espaços nas pontas | `CategoriaServiceImpl` + constraint `uk_categoria_nome_usuario` |
+| Cor de categoria vazia vira `null`; cor informada é gravada em maiúsculas | `CategoriaServiceImpl` |
+| Não dá para **mudar o tipo** de uma categoria que já tem transações | `CategoriaServiceImpl` |
 | Categoria com transações vinculadas **não pode ser excluída** | `CategoriaServiceImpl.delete` |
-| Transação só aceita categoria **do próprio usuário** | `TransacaoServiceImpl.buscarCategoriaOuFalhar` |
+| Transação só aceita categoria **do próprio usuário** e **do mesmo tipo** (despesa → categoria de despesa) | `TransacaoServiceImpl` |
 | Paginação: `page ≥ 0` e `1 ≤ pageSize ≤ 100` | `TransacaoServiceImpl.validarPaginacao` |
 | Parâmetro fiscal: `vigenciaFim ≥ vigenciaInicio` | DTO (`@AssertTrue`) + `ParametroFiscalServiceImpl` |
+| Parâmetro fiscal: chave normalizada em `MAIUSCULAS_COM_UNDERLINE` (`"teto mei"` → `TETO_MEI`) | `ParametroFiscalServiceImpl.normalizarChave` |
 | Parâmetro fiscal: **sem sobreposição** de vigência para a mesma chave | `ParametroFiscalServiceImpl.verificarSobreposicao` |
+| Token de uma conta que não existe mais responde **401** | `UsuarioService.buscarLogado` |
 
 ## Modelo de dados
 
@@ -347,7 +353,7 @@ parametro_fiscal                  (global, administrado pelo ADMIN)
 
 | Tabela | Colunas principais |
 |---|---|
-| `usuario` | `email` (único), `nome`, `password` (BCrypt), `perfil_fiscal`, `atividade_mei`, `role` |
+| `usuario` | `email` (único, sem diferenciar maiúsculas), `nome`, `password` (BCrypt), `perfil_fiscal`, `atividade_mei`, `role` |
 | `categoria` | `nome`, `tipo`, `cor`, `usuario_id` · único (`nome`, `usuario_id`) |
 | `transacao` | `descricao`, `valor` NUMERIC(15,2), `data`, `tipo`, `escopo`, `id_categoria`, `usuario_id` |
 | `parametro_fiscal` | `chave`, `valor` NUMERIC(15,2), `vigencia_inicio`, `vigencia_fim` · único (`chave`, `vigencia_inicio`) |
@@ -377,8 +383,9 @@ Quem cria e altera tabelas é o **Flyway**; o Hibernate só valida (`database.ge
 | V8 | Adiciona o dono (`usuario_id`) em `categoria` + nome único por usuário |
 | V9 | Cria `parametro_fiscal` |
 | V10 | Cria o usuário **ADMIN** inicial e as 6 categorias dele |
+| V11 | Padroniza e-mails em minúsculas e cria índice único que ignora maiúsculas |
 
-> **Regra do time:** migration que já foi para a `main` **nunca é editada**. Para mudar algo, crie uma nova (`V11__...`).
+> **Regra do time:** migration que já foi para a `main` **nunca é editada**. Para mudar algo, crie uma nova (`V12__...`).
 
 ## Segurança e LGPD
 
@@ -387,6 +394,24 @@ Quem cria e altera tabelas é o **Flyway**; o Hibernate só valida (`database.ge
 - **Isolamento por usuário:** transações e categorias são sempre buscadas com o id do dono, que vem do token. Um id de outro usuário responde **404**, como se não existisse.
 - **Administrador sem acesso a dados individuais:** `/admin/estatisticas` devolve apenas totais e médias, e não existe endpoint de listagem de usuários.
 - **Logs:** a exibição de SQL com parâmetros reais vale só no perfil `dev`.
+
+## Testes automatizados
+
+Testes de ponta a ponta em `src/test/java/.../ApiTest.java` (JUnit 5 + RestAssured), rodando com **H2 em memória**. Não precisam de Docker nem de PostgreSQL, e as chaves JWT são geradas na hora por `ChavesJwtTeste`.
+
+```bash
+./mvnw test        # Linux/Mac
+.\mvnw.cmd test   # Windows
+```
+
+Cobrem 24 cenários:
+- cadastro e login (e-mail sem diferenciar maiúsculas, senha errada, MEI sem atividade, categorias iniciais);
+- erros de entrada (corpo ausente, JSON malformado, enum inválido, sem token);
+- isolamento entre usuários (ler, editar e excluir dados de outra pessoa; usar categoria alheia);
+- regras de transação, categoria, perfil e paginação;
+- área administrativa (403 para USER, estatísticas, parâmetros fiscais com chave normalizada e sem sobreposição).
+
+> Rodar `mvnw test` com o `quarkus:dev` aberto faz o modo dev reiniciar (as classes são recompiladas). Espere alguns segundos antes da próxima requisição.
 
 ## Docker
 
